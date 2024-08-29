@@ -53,17 +53,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleAnimationUpdate = useCallback((elementId: string, animation: Animation) => {
-    console.log('Updating animation:', { elementId, animation });
-    setAnimations(prev => {
-      const newAnimations = { ...prev, [elementId]: animation };
-      console.log('New animations state:', newAnimations);
-      const maxDuration = Math.max(...Object.values(newAnimations).map(a => a.duration + a.delay));
-      if (maxDuration > totalDuration) {
-        setTotalDuration(maxDuration);
-      }
-      return newAnimations;
-    });
-  }, [totalDuration]);
+    setAnimations(prev => ({
+      ...prev,
+      [elementId]: animation
+    }));
+  }, []);
 
   const handleElementRename = useCallback((elementId: string, newName: string) => {
     setElements(prevElements => 
@@ -101,12 +95,20 @@ const App: React.FC = () => {
   const animateElements = useCallback(() => {
     console.log('Starting animation with animations:', animations);
     setIsAnimating(true);
-    const maxDuration = Math.max(...Object.values(animations).map(a => a.duration + a.delay));
-    setTimeout(() => {
-      setIsAnimating(false);
-      console.log('Animation finished');
-    }, maxDuration);
-  }, [animations]);
+    const startTime = performance.now();
+    const animate = (time: number) => {
+      const elapsedTime = time - startTime;
+      setCurrentTime(elapsedTime);
+      if (elapsedTime < totalDuration) {
+        requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
+        setCurrentTime(0);
+        console.log('Animation finished');
+      }
+    };
+    requestAnimationFrame(animate);
+  }, [animations, totalDuration]);
 
   const exportAnimatedFile = useCallback(() => {
     const exportObject = {
@@ -137,6 +139,22 @@ const App: React.FC = () => {
     setCurrentTime(newTime);
   }, []);
 
+  const handleStartAnimation = useCallback(() => {
+    setIsAnimating(true);
+    const startTime = performance.now();
+    const animate = (time: number) => {
+      const elapsedTime = time - startTime;
+      setCurrentTime(elapsedTime);
+      if (elapsedTime < 10000) { // Assuming max duration is 10 seconds
+        requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
+        setCurrentTime(0);
+      }
+    };
+    requestAnimationFrame(animate);
+  }, []);
+
   useEffect(() => {
     if (excalidrawRef.current && selectedElement) {
       excalidrawRef.current.updateScene({
@@ -146,6 +164,18 @@ const App: React.FC = () => {
       });
     }
   }, [selectedElement]);
+
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      // Your touch start logic here
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-[#f5f5f5]">
@@ -194,6 +224,7 @@ const App: React.FC = () => {
                 >
                   <Download size={20} />
                 </button>
+                <button onClick={handleStartAnimation}>Start Animation</button>
               </div>
             </div>
           </div>

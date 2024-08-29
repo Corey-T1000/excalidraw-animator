@@ -56,7 +56,9 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({
     const { name, value } = event.target;
     setAnimation((prev) => ({
       ...prev,
-      [name]: name === 'type' || name === 'easing' ? value : parseFloat(value),
+      [name]: name === 'type' || name === 'easing' ? value :
+               name === 'duration' || name === 'delay' ? Math.max(0, parseInt(value) || 0) :
+               parseFloat(value) || 0,
     }));
   }, []);
 

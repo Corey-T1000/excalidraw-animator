@@ -65,37 +65,18 @@ const ExcalidrawRenderer = React.forwardRef<ExcalidrawImperativeAPI, ExcalidrawR
     useEffect(() => {
       if (isAnimating) {
         console.log('Starting animation in ExcalidrawRenderer');
-        const startTime = performance.now();
-        const animate = (time: number) => {
-          const elapsedTime = time - startTime;
-          const updatedElements = elements.map(element => {
-            const animation = animations[element.id];
-            if (animation) {
-              const { duration, delay, easing: easingType } = animation;
-              if (elapsedTime > delay) {
-                const animationProgress = Math.min((elapsedTime - delay) / duration, 1);
-                const easedProgress = easing(animationProgress, easingType);
-                return applyAnimation(element, animation, easedProgress);
-              }
-            }
-            return element;
-          });
-          onElementsChange(updatedElements);
-
-          if (elapsedTime < Math.max(...Object.values(animations).map(a => a.duration + a.delay))) {
-            animationRef.current = requestAnimationFrame(animate);
-          } else {
-            console.log('Animation finished');
+        const newElements = elements.map(element => {
+          const animation = animations[element.id];
+          if (animation) {
+            return applyAnimation(element, animation, currentTime);
           }
-        };
-        animationRef.current = requestAnimationFrame(animate);
+          return element;
+        });
+        setAnimatedElements(newElements);
+      } else {
+        setAnimatedElements(elements);
       }
-      return () => {
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-      };
-    }, [isAnimating, animations, elements, onElementsChange]);
+    }, [isAnimating, elements, animations, currentTime]);
 
     const handleChange = (elements: readonly ExcalidrawElement[], appState: AppState) => {
       onElementsChange(elements);
