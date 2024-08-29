@@ -17,9 +17,8 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "craco build",
-    "test": "craco test",
-    "prebuild": "npm install -g @craco/craco"
+    "build": "npm install -g @craco/craco && craco build",
+    "test": "craco test"
   },
   "eslintConfig": {
     "extends": [
