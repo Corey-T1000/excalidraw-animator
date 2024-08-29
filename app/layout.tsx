@@ -5,11 +5,14 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AI Chat History",
-  description: "View and manage your AI chat history",
-  icons: {
-    icon: "/exclamation-icon.png", // Update this to match your file name and extension
-  },
+  title: "Excalidraw Animator",
+  description: "Animate your Excalidraw drawings",
+  icons: [
+    {
+      rel: 'icon',
+      url: '/favicon.ico',
+    },
+  ],
 };
 
 export default function RootLayout({
