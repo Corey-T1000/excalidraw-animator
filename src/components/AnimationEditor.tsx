@@ -71,8 +71,12 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({
 
   const handleApplyAnimation = useCallback(() => {
     if (selectedElement) {
-      console.log('Applying animation:', { elementId: selectedElement.id, animation });
-      onAnimationUpdate(selectedElement.id, animation);
+      const newAnimation: Animation = {
+        ...animation,
+        value: animation.type === 'move' ? parseFloat(animation.value as string) : animation.value,
+      };
+      console.log('Applying animation:', { elementId: selectedElement.id, animation: newAnimation });
+      onAnimationUpdate(selectedElement.id, newAnimation);
     } else {
       console.error('No element selected when trying to apply animation');
     }

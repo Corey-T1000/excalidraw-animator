@@ -52,7 +52,12 @@ const App: React.FC = () => {
   }, []);
 
   const handleElementsChange = useCallback((newElements: readonly ExcalidrawElement[]) => {
-    setElements(newElements as ExcalidrawElement[]);
+    setElements(prevElements => {
+      if (JSON.stringify(prevElements) !== JSON.stringify(newElements)) {
+        return newElements as ExcalidrawElement[];
+      }
+      return prevElements;
+    });
   }, []);
 
   const handleAnimationUpdate = useCallback((elementId: string, animation: Animation) => {
@@ -62,14 +67,15 @@ const App: React.FC = () => {
         [elementId]: animation
       };
       
-      // Calculate the new total duration
-      const newTotalDuration = Object.values(newAnimations).reduce((max, anim) => {
-        return Math.max(max, anim.delay + anim.duration);
-      }, 0);
-      
-      setTotalDuration(newTotalDuration);
-      
-      return newAnimations;
+      if (JSON.stringify(prev) !== JSON.stringify(newAnimations)) {
+        const newTotalDuration = Object.values(newAnimations).reduce((max, anim) => {
+          return Math.max(max, anim.delay + anim.duration);
+        }, 0);
+        
+        setTotalDuration(newTotalDuration);
+        return newAnimations;
+      }
+      return prev;
     });
   }, []);
 
@@ -120,53 +126,6 @@ const App: React.FC = () => {
     }
   }, [elements]);
 
-  const animateElements = useCallback(() => {
-    console.log('Starting animation with animations:', animations);
-    setIsAnimating(true);
-    const startTime = performance.now();
-    const animate = (time: number) => {
-      const elapsedTime = time - startTime;
-      if (elapsedTime < totalDuration) {
-        setCurrentTime(elapsedTime);
-        requestAnimationFrame(animate);
-      } else {
-        setIsAnimating(false);
-        setCurrentTime(totalDuration);
-        console.log('Animation finished');
-      }
-    };
-    requestAnimationFrame(animate);
-  }, [animations, totalDuration]);
-
-  const exportAnimatedFile = useCallback(() => {
-    const exportObject = {
-      type: 'excalidraw',
-      version: 2,
-      source: 'https://excalidraw.com',
-      elements: elements,
-      appState: {
-        viewBackgroundColor: '#ffffff',
-        gridSize: null,
-      },
-    };
-
-    const blob = new Blob([JSON.stringify(exportObject)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'animated_excalidraw.excalidraw';
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [elements]);
-
-  const handleElementSelect = useCallback((element: ExcalidrawElement | null) => {
-    setSelectedElement(prev => prev?.id === element?.id ? prev : element);
-  }, []);
-
-  const handleTimeChange = useCallback((newTime: number) => {
-    setCurrentTime(newTime);
-  }, []);
-
   const handleStartAnimation = useCallback(() => {
     setIsAnimating(true);
     const startTime = performance.now();
@@ -183,32 +142,23 @@ const App: React.FC = () => {
     requestAnimationFrame(animate);
   }, [totalDuration]);
 
-  const testAnimation = () => {
-    if (elements.length > 0) {
-      const testElement = elements[0];
-      const testAnimation: Animation = {
-        type: 'move',
-        duration: 2000,
-        delay: 0,
-        value: 100,
-        easing: 'linear',
+  const handleAddToTimeline = useCallback(() => {
+    if (selectedElement && animations[selectedElement.id]) {
+      // The animation is already in the timeline, so we're updating it
+      handleAnimationUpdate(selectedElement.id, animations[selectedElement.id]);
+    } else if (selectedElement) {
+      // This is a new animation, so we're adding it to the timeline
+      const newAnimation: Animation = {
+        type: 'move', // default type, you might want to get this from the AnimationEditor
+        duration: 1000, // default duration, you might want to get this from the AnimationEditor
+        delay: 0, // default delay, you might want to get this from the AnimationEditor
+        value: 100, // default value, you might want to get this from the AnimationEditor
+        easing: 'linear', // default easing, you might want to get this from the AnimationEditor
         keyframes: {},
       };
-      setAnimations(prev => ({ ...prev, [testElement.id]: testAnimation }));
-      setIsAnimating(true);
-      setCurrentTime(0);
-      const animationInterval = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= 2000) {
-            clearInterval(animationInterval);
-            setIsAnimating(false);
-            return 2000;
-          }
-          return prev + 16; // Approximately 60 FPS
-        });
-      }, 16);
+      handleAnimationUpdate(selectedElement.id, newAnimation);
     }
-  };
+  }, [selectedElement, animations, handleAnimationUpdate]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -235,6 +185,36 @@ const App: React.FC = () => {
       document.removeEventListener('touchstart', handleTouchStart);
     };
   }, []);
+
+  const handleElementSelect = useCallback((element: ExcalidrawElement | null) => {
+    setSelectedElement(prev => prev?.id === element?.id ? prev : element);
+  }, []);
+
+  const handleTimeChange = useCallback((newTime: number) => {
+    setCurrentTime(newTime);
+  }, []);
+
+  const exportAnimatedFile = useCallback(() => {
+    const exportObject = {
+      type: 'excalidraw',
+      version: 2,
+      source: 'https://excalidraw.com',
+      elements: elements,
+      appState: {
+        viewBackgroundColor: '#ffffff',
+        gridSize: null,
+      },
+      animations: animations, // Include animations in the exported file
+    };
+
+    const blob = new Blob([JSON.stringify(exportObject)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'animated_excalidraw.excalidraw';
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [elements, animations]);
 
   return (
     <div className="flex flex-col h-screen bg-[#f5f5f5]">
@@ -280,10 +260,10 @@ const App: React.FC = () => {
               </div>
               <div className="p-4 border-t border-gray-300 flex items-center space-x-2">
                 <button
-                  onClick={animateElements}
+                  onClick={handleAddToTimeline}
                   className="flex-grow bg-[#6965db] text-white py-2 px-4 rounded-md hover:bg-[#5b57c2] transition duration-300"
                 >
-                  Animate
+                  Add to Timeline
                 </button>
                 <button
                   onClick={exportAnimatedFile}
@@ -293,9 +273,6 @@ const App: React.FC = () => {
                   <Download size={20} />
                 </button>
               </div>
-              <button onClick={testAnimation} className="mt-4 bg-blue-500 text-white p-2 rounded">
-                Test Animation
-              </button>
             </div>
           </div>
           <GlobalTimeline
@@ -312,4 +289,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default React.memo(App);
