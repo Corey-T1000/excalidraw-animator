@@ -7,6 +7,7 @@ import GlobalTimeline from './components/GlobalTimeline';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 import { Download } from 'lucide-react';
+import { Menu } from './components/Icons';
 import './styles/StartScreen.css';
 
 interface Animation {
@@ -32,6 +33,7 @@ const App: React.FC = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0); // Default 0
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const excalidrawRef = useRef<ExcalidrawImperativeAPI>(null);
 
@@ -181,6 +183,37 @@ const App: React.FC = () => {
     requestAnimationFrame(animate);
   }, [totalDuration]);
 
+  const testAnimation = () => {
+    if (elements.length > 0) {
+      const testElement = elements[0];
+      const testAnimation: Animation = {
+        type: 'move',
+        duration: 2000,
+        delay: 0,
+        value: 100,
+        easing: 'linear',
+        keyframes: {},
+      };
+      setAnimations(prev => ({ ...prev, [testElement.id]: testAnimation }));
+      setIsAnimating(true);
+      setCurrentTime(0);
+      const animationInterval = setInterval(() => {
+        setCurrentTime(prev => {
+          if (prev >= 2000) {
+            clearInterval(animationInterval);
+            setIsAnimating(false);
+            return 2000;
+          }
+          return prev + 16; // Approximately 60 FPS
+        });
+      }, 16);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   useEffect(() => {
     if (excalidrawRef.current && selectedElement) {
       excalidrawRef.current.updateScene({
@@ -209,7 +242,16 @@ const App: React.FC = () => {
         <StartScreen onFileUpload={handleFileUpload} onCreateNew={handleCreateNew} />
       ) : (
         <>
-          <div className="flex flex-grow overflow-hidden">
+          <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+            <h1 className="text-xl font-bold">Excalidraw Animator</h1>
+            <button
+              onClick={toggleSidebar}
+              className="md:hidden p-2 rounded-md hover:bg-gray-100"
+            >
+              <Menu size={24} />
+            </button>
+          </header>
+          <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
             <div className="flex-1 overflow-hidden">
               <ExcalidrawWrapper
                 ref={excalidrawRef}
@@ -221,7 +263,7 @@ const App: React.FC = () => {
                 currentTime={currentTime}
               />
             </div>
-            <div className="w-80 bg-white border-l border-gray-300 flex flex-col">
+            <div className={`w-full md:w-80 bg-white border-t md:border-t-0 md:border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-y-0' : 'translate-y-full'} md:translate-y-0`}>
               <div className="flex-1 overflow-y-auto">
                 <ElementTable
                   elements={elements}
@@ -250,8 +292,10 @@ const App: React.FC = () => {
                 >
                   <Download size={20} />
                 </button>
-                <button onClick={handleStartAnimation}>Start Animation</button>
               </div>
+              <button onClick={testAnimation} className="mt-4 bg-blue-500 text-white p-2 rounded">
+                Test Animation
+              </button>
             </div>
           </div>
           <GlobalTimeline
@@ -260,6 +304,7 @@ const App: React.FC = () => {
             onTimeChange={handleTimeChange}
             animations={animations}
             onAnimationUpdate={handleAnimationUpdate}
+            onStartAnimation={handleStartAnimation}
           />
         </>
       )}

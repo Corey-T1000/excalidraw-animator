@@ -46,34 +46,36 @@ const ElementTable: React.FC<ElementTableProps> = ({
   };
 
   return (
-    <table className="w-full">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-        </tr>
-      </thead>
-      <tbody>
-        {elements.map((element) => (
-          <tr 
-            key={element.id} 
-            onClick={() => onElementSelect(element)}
-            className={selectedElementId === element.id ? 'bg-blue-100' : ''}
-          >
-            <td>
-              <input
-                value={selectedElementId === element.id ? editingName : elementNames[element.id]}
-                onChange={handleNameChange}
-                onBlur={() => handleNameBlur(element.id)}
-                disabled={selectedElementId !== element.id}
-                className={selectedElementId === element.id ? 'border border-blue-500' : 'border-none bg-transparent'}
-              />
-            </td>
-            <td>{element.type}</td>
+    <div className="overflow-x-auto p-4">
+      <table className="w-full">
+        <thead>
+          <tr>
+            <th className="px-2 py-2 text-left">Name</th>
+            <th className="px-2 py-2 text-left">Type</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {elements.map((element) => (
+            <tr 
+              key={element.id} 
+              onClick={() => onElementSelect(element)}
+              className={`cursor-pointer hover:bg-gray-100 ${selectedElementId === element.id ? 'bg-blue-100' : ''}`}
+            >
+              <td className="px-2 py-2">
+                <input
+                  value={selectedElementId === element.id ? editingName : elementNames[element.id]}
+                  onChange={handleNameChange}
+                  onBlur={() => handleNameBlur(element.id)}
+                  disabled={selectedElementId !== element.id}
+                  className={`w-full ${selectedElementId === element.id ? 'border border-blue-500' : 'border-none bg-transparent'}`}
+                />
+              </td>
+              <td className="px-2 py-2">{element.type}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 

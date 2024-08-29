@@ -153,8 +153,8 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({
         <div>
           {getValueInput}
         </div>
-        <div className="flex space-x-2">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row sm:space-x-2">
+          <div className="flex-1 mb-2 sm:mb-0">
             <label className="block text-sm font-medium text-gray-700 mb-1">Duration (ms)</label>
             <input
               type="number"

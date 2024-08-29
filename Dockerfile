@@ -10,6 +10,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
+# Install craco globally
+RUN npm install -g @craco/craco
+
 # Copy the rest of the application code
 COPY . .
 
