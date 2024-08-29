@@ -5,8 +5,11 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Excalidraw Animator",
-  description: "Animate your Excalidraw drawings",
+  title: "AI Chat History",
+  description: "View and manage your AI chat history",
+  icons: {
+    icon: "/exclamation-icon.png", // Update this to match your file name and extension
+  },
 };
 
 export default function RootLayout({
@@ -16,9 +19,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-      </head>
       <body className={inter.className}>{children}</body>
     </html>
   );

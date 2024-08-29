@@ -1,27 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack } from './Icons';
-
-interface Animation {
-  type: 'move' | 'rotate' | 'scale' | 'style';
-  duration: number;
-  delay: number;
-  value: number | string | StyleValue;
-  easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
-  keyframes: Record<string, number | string | StyleValue>;
-}
-
-interface StyleValue {
-  strokeColor?: string;
-  strokeWidth?: number;
-  backgroundColor?: string;
-}
+import { Animation } from '../types/Animation';
+import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 
 interface GlobalTimelineProps {
   duration: number;
   currentTime: number;
   onTimeChange: (time: number) => void;
   animations: Record<string, Animation>;
+  elements: ExcalidrawElement[];
   onAnimationUpdate: (elementId: string, animation: Animation) => void;
   onStartAnimation: () => void;
 }
@@ -31,11 +19,12 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
   currentTime,
   onTimeChange,
   animations,
+  elements,
   onAnimationUpdate,
   onStartAnimation,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [draggingKeyframe, setDraggingKeyframe] = useState<{ elementId: string; time: number } | null>(null);
+  const [draggingAnimation, setDraggingAnimation] = useState<{ elementId: string; type: 'start' | 'end' } | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isAnimating] = useState(false);
 
@@ -47,25 +36,29 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
         const newTime = Math.max(0, Math.min(duration, (x / rect.width) * duration));
         onTimeChange(Math.round(newTime));
       }
-      if (draggingKeyframe && timelineRef.current) {
+      if (draggingAnimation && timelineRef.current) {
         const rect = timelineRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const newTime = Math.max(0, Math.min(duration, Math.round((x / rect.width) * duration)));
-        const { elementId, time } = draggingKeyframe;
+        const { elementId, type } = draggingAnimation;
         const animation = animations[elementId];
-        const newKeyframes = { ...animation.keyframes };
-        delete newKeyframes[time];
-        newKeyframes[newTime] = animation.keyframes[time];
-        onAnimationUpdate(elementId, { ...animation, keyframes: newKeyframes });
+        if (type === 'start') {
+          const newDelay = Math.min(newTime, animation.delay + animation.duration - 100);
+          const newDuration = animation.delay + animation.duration - newDelay;
+          onAnimationUpdate(elementId, { ...animation, delay: newDelay, duration: newDuration });
+        } else {
+          const newDuration = Math.max(100, newTime - animation.delay);
+          onAnimationUpdate(elementId, { ...animation, duration: newDuration });
+        }
       }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      setDraggingKeyframe(null);
+      setDraggingAnimation(null);
     };
 
-    if (isDragging || draggingKeyframe) {
+    if (isDragging || draggingAnimation) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -74,7 +67,7 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, draggingKeyframe, duration, onTimeChange, animations, onAnimationUpdate]);
+  }, [isDragging, draggingAnimation, duration, onTimeChange, animations, onAnimationUpdate]);
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -83,9 +76,9 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
     onTimeChange(Math.round(newTime));
   };
 
-  const handleKeyframeMouseDown = (elementId: string, time: number, e: React.MouseEvent) => {
+  const handleAnimationDragStart = (elementId: string, type: 'start' | 'end', e: React.MouseEvent) => {
     e.stopPropagation();
-    setDraggingKeyframe({ elementId, time });
+    setDraggingAnimation({ elementId, type });
   };
 
   return (
@@ -124,24 +117,36 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
         />
       </div>
       <div className="mt-2 space-y-2">
-        {Object.entries(animations).map(([elementId, animation], index) => (
-          <div
-            key={elementId}
-            className="h-6 relative"
-          >
-            <div className="absolute left-0 w-16 text-xs truncate">{elementId}</div>
-            <div className="ml-16 h-full bg-gray-200 rounded-full relative">
-              {Object.entries(animation.keyframes).map(([time, value]) => (
+        {elements.map((element) => {
+          const animation = animations[element.id];
+          if (!animation) return null;
+          
+          const elementName = element.customData?.name || `${element.type}-${element.id.slice(0, 4)}`;
+          
+          return (
+            <div key={element.id} className="h-6 relative">
+              <div className="absolute left-0 w-16 text-xs truncate">{elementName}</div>
+              <div className="ml-16 h-full bg-gray-200 rounded-full relative">
                 <div
-                  key={`${elementId}-${time}`}
-                  className="absolute w-3 h-3 bg-blue-500 rounded-full cursor-move top-1/2 transform -translate-y-1/2"
-                  style={{ left: `${(Number(time) / duration) * 100}%` }}
-                  onMouseDown={(e) => handleKeyframeMouseDown(elementId, Number(time), e)}
-                />
-              ))}
+                  className="absolute h-full bg-blue-500 rounded-full"
+                  style={{
+                    left: `${(animation.delay / duration) * 100}%`,
+                    width: `${(animation.duration / duration) * 100}%`,
+                  }}
+                >
+                  <div
+                    className="absolute left-0 w-2 h-full bg-blue-700 cursor-ew-resize"
+                    onMouseDown={(e) => handleAnimationDragStart(element.id, 'start', e)}
+                  />
+                  <div
+                    className="absolute right-0 w-2 h-full bg-blue-700 cursor-ew-resize"
+                    onMouseDown={(e) => handleAnimationDragStart(element.id, 'end', e)}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

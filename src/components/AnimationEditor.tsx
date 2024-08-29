@@ -1,191 +1,144 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
-import OpenColorPicker from './OpenColorPicker';
-import { motion } from 'framer-motion';
-
-// Export the Animation interface
-export interface Animation {
-  type: 'move' | 'rotate' | 'scale' | 'style';
-  duration: number;
-  delay: number;
-  value: number | string | StyleValue;
-  easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
-  keyframes: Record<number, number | string | StyleValue>;
-}
+import { Animation, MoveValue, StyleValue } from '../types/Animation';
 
 interface AnimationEditorProps {
   selectedElement: ExcalidrawElement | null;
-  onAnimationUpdate: (elementId: string, animation: Animation) => void;
+  onAnimationUpdate: (elementId: string, animation: Animation | null) => void;
+  onAddToTimeline: (elementId: string, animation: Animation) => void;
 }
 
-interface StyleValue {
-  strokeColor?: string;
-  strokeWidth?: number;
-  backgroundColor?: string;
-}
-
-const AnimationEditor: React.FC<AnimationEditorProps> = ({ 
-  selectedElement, 
-  onAnimationUpdate 
-}) => {
-  const [animation, setAnimation] = useState<Animation>({
-    type: 'move',
-    duration: 1000,
-    delay: 0,
-    value: 0,
-    easing: 'linear',
-    keyframes: {},
-  });
+const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAnimationUpdate, onAddToTimeline }) => {
+  const [animationType, setAnimationType] = useState<Animation['type']>('move');
+  const [animationDuration, setAnimationDuration] = useState(1000);
+  const [animationDelay, setAnimationDelay] = useState(0);
+  const [animationValue, setAnimationValue] = useState<Animation['value']>({ x: 0, y: 0 });
+  const [animationEasing, setAnimationEasing] = useState<Animation['easing']>('linear');
 
   useEffect(() => {
     if (selectedElement) {
-      console.log('Selected element changed:', selectedElement);
-      // Reset animation when a new element is selected
-      setAnimation({
-        type: 'move',
-        duration: 1000,
-        delay: 0,
-        value: 0,
-        easing: 'linear',
-        keyframes: {},
-      });
+      // Reset animation values when a new element is selected
+      setAnimationType('move');
+      setAnimationDuration(1000);
+      setAnimationDelay(0);
+      setAnimationValue({ x: 0, y: 0 });
+      setAnimationEasing('linear');
     }
   }, [selectedElement]);
 
-  const handleAnimationChange = useCallback((event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = event.target;
-    setAnimation((prev) => ({
-      ...prev,
-      [name]: name === 'type' || name === 'easing' ? value :
-               name === 'duration' || name === 'delay' ? Math.max(0, parseInt(value) || 0) :
-               parseFloat(value) || 0,
-    }));
-  }, []);
-
-  const handleStyleChange = useCallback((key: keyof StyleValue, value: string | number) => {
-    setAnimation((prev) => ({
-      ...prev,
-      value: { ...(prev.value as StyleValue), [key]: value },
-    }));
-  }, []);
-
-  const handleApplyAnimation = useCallback(() => {
-    if (selectedElement) {
-      const newAnimation: Animation = {
-        ...animation,
-        value: animation.type === 'move' ? parseFloat(animation.value as string) : animation.value,
-      };
-      console.log('Applying animation:', { elementId: selectedElement.id, animation: newAnimation });
-      onAnimationUpdate(selectedElement.id, newAnimation);
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (animationType === 'move') {
+      setAnimationValue(prev => ({
+        ...(prev as MoveValue),
+        [name]: parseFloat(value) || 0
+      }));
     } else {
-      console.error('No element selected when trying to apply animation');
+      setAnimationValue(parseFloat(value) || 0);
     }
-  }, [selectedElement, animation, onAnimationUpdate]);
+  };
 
-  const getValueInput = useMemo(() => {
-    switch (animation.type) {
-      case 'move':
-      case 'rotate':
-      case 'scale':
-        return (
-          <input
-            type="number"
-            name="value"
-            value={animation.value as number}
-            onChange={handleAnimationChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
-          />
-        );
-      case 'style':
-        return (
-          <div className="space-y-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Stroke Color</label>
-              <OpenColorPicker
-                value={(animation.value as StyleValue).strokeColor || ''}
-                onChange={(color) => handleStyleChange('strokeColor', color)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Stroke Width</label>
-              <input
-                type="number"
-                value={(animation.value as StyleValue).strokeWidth || 0}
-                onChange={(e) => handleStyleChange('strokeWidth', parseFloat(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Fill Color</label>
-              <OpenColorPicker
-                value={(animation.value as StyleValue).backgroundColor || ''}
-                onChange={(color) => handleStyleChange('backgroundColor', color)}
-              />
-            </div>
-          </div>
-        );
+  const handleSubmit = () => {
+    if (selectedElement) {
+      const animation: Animation = {
+        type: animationType,
+        duration: animationDuration,
+        delay: animationDelay,
+        value: animationValue,
+        easing: animationEasing,
+        keyframes: {},
+      };
+      onAnimationUpdate(selectedElement.id, animation);
+      onAddToTimeline(selectedElement.id, animation);
     }
-  }, [animation.type, animation.value, handleAnimationChange, handleStyleChange]);
+  };
 
-  if (!selectedElement) {
-    return null;
-  }
+  const handleReset = () => {
+    if (selectedElement) {
+      onAnimationUpdate(selectedElement.id, null);
+    }
+  };
+
+  if (!selectedElement) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="p-4 border-t border-gray-300"
-    >
-      <h2 className="text-lg font-semibold mb-4">Animation Editor</h2>
+    <div className="p-4">
+      <h3 className="text-lg font-semibold mb-4">Animation Editor</h3>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Animation type</label>
+          <label className="block mb-1">Type:</label>
           <select
-            name="type"
-            value={animation.type}
-            onChange={handleAnimationChange}
-            className="w-full p-2 border border-gray-300 rounded-md bg-white"
+            value={animationType}
+            onChange={(e) => setAnimationType(e.target.value as Animation['type'])}
+            className="w-full p-2 border rounded"
           >
             <option value="move">Move</option>
             <option value="rotate">Rotate</option>
             <option value="scale">Scale</option>
-            <option value="style">Style (Color/Width)</option>
+            <option value="style">Style</option>
           </select>
         </div>
-        <div>
-          {getValueInput}
-        </div>
-        <div className="flex flex-col sm:flex-row sm:space-x-2">
-          <div className="flex-1 mb-2 sm:mb-0">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (ms)</label>
+        {animationType === 'move' && (
+          <div className="flex space-x-4">
+            <div className="flex-1">
+              <label className="block mb-1">X Movement:</label>
+              <input
+                type="number"
+                name="x"
+                value={(animationValue as MoveValue).x}
+                onChange={handleValueChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block mb-1">Y Movement:</label>
+              <input
+                type="number"
+                name="y"
+                value={(animationValue as MoveValue).y}
+                onChange={handleValueChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+          </div>
+        )}
+        {animationType !== 'move' && (
+          <div>
+            <label className="block mb-1">Value:</label>
             <input
               type="number"
-              name="duration"
-              value={animation.duration}
-              onChange={handleAnimationChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
+              value={animationValue as number}
+              onChange={handleValueChange}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+        )}
+        <div className="flex space-x-4">
+          <div className="flex-1">
+            <label className="block mb-1">Duration (ms):</label>
+            <input
+              type="number"
+              value={animationDuration}
+              onChange={(e) => setAnimationDuration(parseInt(e.target.value) || 0)}
+              className="w-full p-2 border rounded"
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Delay (ms)</label>
+            <label className="block mb-1">Delay (ms):</label>
             <input
               type="number"
-              name="delay"
-              value={animation.delay}
-              onChange={handleAnimationChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
+              value={animationDelay}
+              onChange={(e) => setAnimationDelay(parseInt(e.target.value) || 0)}
+              className="w-full p-2 border rounded"
             />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Easing</label>
+          <label className="block mb-1">Easing:</label>
           <select
-            name="easing"
-            value={animation.easing}
-            onChange={handleAnimationChange}
-            className="w-full p-2 border border-gray-300 rounded-md bg-white"
+            value={animationEasing}
+            onChange={(e) => setAnimationEasing(e.target.value as Animation['easing'])}
+            className="w-full p-2 border rounded"
           >
             <option value="linear">Linear</option>
             <option value="easeIn">Ease In</option>
@@ -193,17 +146,23 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({
             <option value="easeInOut">Ease In Out</option>
           </select>
         </div>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleSubmit}
+            className="flex-1 bg-primary text-white p-2 rounded hover:bg-primary-darker transition-colors duration-200"
+          >
+            Add Animation
+          </button>
+          <button
+            onClick={handleReset}
+            className="flex-1 bg-gray-300 text-gray-700 p-2 rounded hover:bg-gray-400 transition-colors duration-200"
+          >
+            Reset
+          </button>
+        </div>
       </div>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleApplyAnimation}
-        className="w-full bg-[#6965db] text-white py-2 px-4 rounded-md hover:bg-[#5b57c2] transition duration-300 mt-4"
-      >
-        Apply Animation
-      </motion.button>
-    </motion.div>
+    </div>
   );
 };
 
-export default React.memo(AnimationEditor);
+export default AnimationEditor;

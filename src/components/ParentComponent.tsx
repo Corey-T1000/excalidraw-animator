@@ -1,23 +1,27 @@
-import React, { useState, useCallback } from 'react';
-import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
-import AnimationEditor, { Animation } from './AnimationEditor';
+import React, { useCallback } from 'react';
+import AnimationEditor from './AnimationEditor';
+import { Animation } from '../types/Animation';
 
 const ParentComponent: React.FC = () => {
-  const [elements, setElements] = useState<ExcalidrawElement[]>([]);
-  const [selectedElement, setSelectedElement] = useState<ExcalidrawElement | null>(null);
-
-  const handleAnimationUpdate = useCallback((elementId: string, animation: Animation) => {
+  const handleAnimationUpdate = useCallback((elementId: string, animation: Animation | null) => {
     // Existing animation update logic
+    console.log(`Updating animation for element ${elementId}:`, animation);
+    // You would typically update your state or call a parent component's method here
   }, []);
 
-  // Remove the handleElementNameUpdate function as it's no longer needed here
+  const handleAddToTimeline = useCallback((elementId: string, animation: Animation) => {
+    // Add to timeline logic
+    console.log(`Adding animation to timeline for element ${elementId}:`, animation);
+    // You would typically update your timeline state or call a parent component's method here
+  }, []);
 
   return (
     <div>
       {/* Other components */}
       <AnimationEditor
-        selectedElement={selectedElement}
+        selectedElement={null} // You might want to pass a real selected element here
         onAnimationUpdate={handleAnimationUpdate}
+        onAddToTimeline={handleAddToTimeline}
       />
     </div>
   );

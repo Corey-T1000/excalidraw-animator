@@ -9,21 +9,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types
 import { Download } from 'lucide-react';
 import { Menu } from './components/Icons';
 import './styles/StartScreen.css';
-
-interface Animation {
-  type: 'move' | 'rotate' | 'scale' | 'style';
-  duration: number;
-  delay: number;
-  value: number | string | StyleValue;
-  easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
-  keyframes: Record<string, number | string | StyleValue>;
-}
-
-interface StyleValue {
-  strokeColor?: string;
-  strokeWidth?: number;
-  backgroundColor?: string;
-}
+import { Animation } from './types/Animation';
 
 const App: React.FC = () => {
   const [elements, setElements] = useState<ExcalidrawElement[]>([]);
@@ -60,22 +46,25 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleAnimationUpdate = useCallback((elementId: string, animation: Animation) => {
+  const handleAnimationUpdate = useCallback((elementId: string, animation: Animation | null) => {
     setAnimations(prev => {
-      const newAnimations = {
+      if (animation === null) {
+        const newAnimations = { ...prev };
+        delete newAnimations[elementId];
+        return newAnimations;
+      }
+      return {
         ...prev,
         [elementId]: animation
       };
-      
-      if (JSON.stringify(prev) !== JSON.stringify(newAnimations)) {
-        const newTotalDuration = Object.values(newAnimations).reduce((max, anim) => {
-          return Math.max(max, anim.delay + anim.duration);
-        }, 0);
-        
-        setTotalDuration(newTotalDuration);
-        return newAnimations;
+    });
+
+    // Update total duration if necessary
+    setTotalDuration(prevDuration => {
+      if (animation) {
+        return Math.max(prevDuration, animation.delay + animation.duration);
       }
-      return prev;
+      return prevDuration;
     });
   }, []);
 
@@ -142,23 +131,11 @@ const App: React.FC = () => {
     requestAnimationFrame(animate);
   }, [totalDuration]);
 
-  const handleAddToTimeline = useCallback(() => {
-    if (selectedElement && animations[selectedElement.id]) {
-      // The animation is already in the timeline, so we're updating it
-      handleAnimationUpdate(selectedElement.id, animations[selectedElement.id]);
-    } else if (selectedElement) {
-      // This is a new animation, so we're adding it to the timeline
-      const newAnimation: Animation = {
-        type: 'move', // default type, you might want to get this from the AnimationEditor
-        duration: 1000, // default duration, you might want to get this from the AnimationEditor
-        delay: 0, // default delay, you might want to get this from the AnimationEditor
-        value: 100, // default value, you might want to get this from the AnimationEditor
-        easing: 'linear', // default easing, you might want to get this from the AnimationEditor
-        keyframes: {},
-      };
-      handleAnimationUpdate(selectedElement.id, newAnimation);
-    }
-  }, [selectedElement, animations, handleAnimationUpdate]);
+  const handleAddToTimeline = useCallback((elementId: string, animation: Animation) => {
+    // Here you can add any additional logic needed for adding to the timeline
+    // For now, we'll just update the totalDuration
+    setTotalDuration(prev => Math.max(prev, animation.delay + animation.duration));
+  }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -255,24 +232,11 @@ const App: React.FC = () => {
                   <AnimationEditor
                     selectedElement={selectedElement}
                     onAnimationUpdate={handleAnimationUpdate}
+                    onAddToTimeline={handleAddToTimeline}
                   />
                 )}
               </div>
-              <div className="p-4 border-t border-gray-300 flex items-center space-x-2">
-                <button
-                  onClick={handleAddToTimeline}
-                  className="flex-grow bg-[#6965db] text-white py-2 px-4 rounded-md hover:bg-[#5b57c2] transition duration-300"
-                >
-                  Add to Timeline
-                </button>
-                <button
-                  onClick={exportAnimatedFile}
-                  className="p-2 border border-[#6965db] text-[#6965db] rounded-md hover:bg-[#f0f0ff] transition duration-300"
-                  title="Export Animated File"
-                >
-                  <Download size={20} />
-                </button>
-              </div>
+              {/* Remove the separate "Add to Timeline" button */}
             </div>
           </div>
           <GlobalTimeline
@@ -280,6 +244,7 @@ const App: React.FC = () => {
             currentTime={currentTime}
             onTimeChange={handleTimeChange}
             animations={animations}
+            elements={elements}
             onAnimationUpdate={handleAnimationUpdate}
             onStartAnimation={handleStartAnimation}
           />
