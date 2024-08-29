@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ExcalidrawRenderer from './components/ExcalidrawRenderer';
 import AnimationEditor from './components/AnimationEditor';
 import ElementTable from './components/ElementTable';
-import StartScreen from './components/StartScreen';
+import { StartScreen } from './components/StartScreen';
 import GlobalTimeline from './components/GlobalTimeline';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 import { Download } from 'lucide-react';
+import './styles/StartScreen.css';
 
 interface Animation {
   type: 'move' | 'rotate' | 'scale' | 'style';

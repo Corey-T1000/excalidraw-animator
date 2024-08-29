@@ -67,3 +67,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Excalidraw](https://github.com/excalidraw/excalidraw) for the amazing drawing library
+- [Framer Motion](https://www.framer.com/motion/) for powering our animations
+
+## Contact
+
+Corey Thomas - [Your Email]
+
+Project Link: [https://github.com/Corey-T1000/excalidraw-animator](https://github.com/Corey-T1000/excalidraw-animator)

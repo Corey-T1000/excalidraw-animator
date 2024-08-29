@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
 import { ExcalidrawImperativeAPI, AppState } from '@excalidraw/excalidraw/types/types';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
@@ -15,6 +15,7 @@ interface ExcalidrawRendererProps {
 
 const ExcalidrawRenderer = React.forwardRef<ExcalidrawImperativeAPI, ExcalidrawRendererProps>(
   ({ elements, onElementsChange, animations, isAnimating, onElementSelect, currentTime }, ref) => {
+    const [animatedElements, setAnimatedElements] = useState<ExcalidrawElement[]>(elements);
     const animationRef = useRef<number>();
 
     const applyAnimation = (element: ExcalidrawElement, animation: Animation, progress: number) => {
