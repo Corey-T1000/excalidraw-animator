@@ -15,7 +15,7 @@ Excalidraw Animator is a powerful tool that brings your Excalidraw diagrams to l
 
 ## Demo
 
-[View Live Demo](https://your-demo-link.vercel.app)
+[View Live Demo](https://excalidraw-animator.vercel.app/)
 
 ## Installation
 
