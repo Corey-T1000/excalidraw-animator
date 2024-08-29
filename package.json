@@ -18,7 +18,8 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test"
+    "test": "craco test",
+    "prebuild": "npm install -g @craco/craco"
   },
   "eslintConfig": {
     "extends": [
