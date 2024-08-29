@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import ExcalidrawRenderer from './components/ExcalidrawRenderer';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import ExcalidrawWrapper from './components/ExcalidrawWrapper';
 import AnimationEditor from './components/AnimationEditor';
 import ElementTable from './components/ElementTable';
 import { StartScreen } from './components/StartScreen';
 import GlobalTimeline from './components/GlobalTimeline';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 import { Download } from 'lucide-react';
 import './styles/StartScreen.css';
 
@@ -31,9 +31,9 @@ const App: React.FC = () => {
   const [isStartScreen, setIsStartScreen] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(1000); // Default 1 second
+  const [totalDuration, setTotalDuration] = useState(0); // Default 0
 
-  const excalidrawRef = useRef<any>(null);
+  const excalidrawRef = useRef<ExcalidrawImperativeAPI>(null);
 
   const handleFileUpload = useCallback(async (file: File) => {
     const content = await file.text();
@@ -54,44 +54,69 @@ const App: React.FC = () => {
   }, []);
 
   const handleAnimationUpdate = useCallback((elementId: string, animation: Animation) => {
-    setAnimations(prev => ({
-      ...prev,
-      [elementId]: animation
-    }));
+    setAnimations(prev => {
+      const newAnimations = {
+        ...prev,
+        [elementId]: animation
+      };
+      
+      // Calculate the new total duration
+      const newTotalDuration = Object.values(newAnimations).reduce((max, anim) => {
+        return Math.max(max, anim.delay + anim.duration);
+      }, 0);
+      
+      setTotalDuration(newTotalDuration);
+      
+      return newAnimations;
+    });
   }, []);
 
   const handleElementRename = useCallback((elementId: string, newName: string) => {
-    setElements(prevElements => 
-      prevElements.map(el => 
-        el.id === elementId 
-          ? { ...el, customData: { ...el.customData, name: newName } }
-          : el
-      )
-    );
-    
-    setAnimations(prevAnimations => {
-      if (prevAnimations[elementId]) {
-        const { [elementId]: oldAnimation, ...rest } = prevAnimations;
-        return { ...rest, [elementId]: oldAnimation };
-      }
-      return prevAnimations;
-    });
+    setElements(prevElements => {
+      const elementIndex = prevElements.findIndex(el => el.id === elementId);
+      if (elementIndex === -1) return prevElements;
 
+      const element = prevElements[elementIndex];
+      
+      // Use the new name if provided, otherwise keep the existing name or generate a new one
+      const finalName = newName.trim() || element.customData?.name || `${element.type}-${prevElements.filter(el => el.type === element.type).length}`;
+
+      const updatedElement = {
+        ...element,
+        customData: { ...element.customData, name: finalName }
+      };
+
+      const newElements = [...prevElements];
+      newElements[elementIndex] = updatedElement;
+
+      // Update the Excalidraw scene
+      if (excalidrawRef.current) {
+        excalidrawRef.current.updateScene({
+          elements: newElements
+        });
+      }
+
+      return newElements;
+    });
+    
     // Update selectedElement if it's the renamed element
     setSelectedElement(prev => 
       prev && prev.id === elementId 
-        ? { ...prev, customData: { ...prev.customData, name: newName } }
+        ? { ...prev, customData: { ...prev.customData, name: newName.trim() || prev.customData?.name || `${prev.type}-${elements.filter(el => el.type === prev.type).length}` } }
         : prev
     );
-  }, []);
 
-  const handleElementNameUpdate = useCallback((elementId: string, newName: string) => {
-    setElements((prevElements) =>
-      prevElements.map((element) =>
-        element.id === elementId ? { ...element, customData: { ...element.customData, name: newName } } : element
-      )
-    );
-  }, []);
+    // Update the Excalidraw scene
+    if (excalidrawRef.current) {
+      excalidrawRef.current.updateScene({
+        elements: elements.map(el => 
+          el.id === elementId 
+            ? { ...el, customData: { ...el.customData, name: newName.trim() || `${el.type}-${elements.filter(e => e.type === el.type).length}` } }
+            : el
+        )
+      });
+    }
+  }, [elements]);
 
   const animateElements = useCallback(() => {
     console.log('Starting animation with animations:', animations);
@@ -99,12 +124,12 @@ const App: React.FC = () => {
     const startTime = performance.now();
     const animate = (time: number) => {
       const elapsedTime = time - startTime;
-      setCurrentTime(elapsedTime);
       if (elapsedTime < totalDuration) {
+        setCurrentTime(elapsedTime);
         requestAnimationFrame(animate);
       } else {
         setIsAnimating(false);
-        setCurrentTime(0);
+        setCurrentTime(totalDuration);
         console.log('Animation finished');
       }
     };
@@ -145,16 +170,16 @@ const App: React.FC = () => {
     const startTime = performance.now();
     const animate = (time: number) => {
       const elapsedTime = time - startTime;
-      setCurrentTime(elapsedTime);
-      if (elapsedTime < 10000) { // Assuming max duration is 10 seconds
+      if (elapsedTime < totalDuration) {
+        setCurrentTime(elapsedTime);
         requestAnimationFrame(animate);
       } else {
         setIsAnimating(false);
-        setCurrentTime(0);
+        setCurrentTime(totalDuration);
       }
     };
     requestAnimationFrame(animate);
-  }, []);
+  }, [totalDuration]);
 
   useEffect(() => {
     if (excalidrawRef.current && selectedElement) {
@@ -186,10 +211,10 @@ const App: React.FC = () => {
         <>
           <div className="flex flex-grow overflow-hidden">
             <div className="flex-1 overflow-hidden">
-              <ExcalidrawRenderer 
+              <ExcalidrawWrapper
                 ref={excalidrawRef}
-                elements={elements} 
-                onElementsChange={handleElementsChange} 
+                elements={elements}
+                onElementsChange={handleElementsChange}
                 animations={animations}
                 isAnimating={isAnimating}
                 onElementSelect={handleElementSelect}

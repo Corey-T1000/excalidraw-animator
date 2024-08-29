@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Excalidraw } from '@excalidraw/excalidraw';
-import { ExcalidrawImperativeAPI, AppState } from '@excalidraw/excalidraw/types/types';
-import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
+import React, { useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { Excalidraw } from "@excalidraw/excalidraw";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
+import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
+import { AppState } from "@excalidraw/excalidraw/types/types";
 import { Animation } from './AnimationEditor';
 
 interface ExcalidrawRendererProps {
@@ -13,27 +14,29 @@ interface ExcalidrawRendererProps {
   currentTime: number;
 }
 
-const ExcalidrawRenderer = React.forwardRef<ExcalidrawImperativeAPI, ExcalidrawRendererProps>(
+const ExcalidrawRenderer = forwardRef<ExcalidrawImperativeAPI, ExcalidrawRendererProps>(
   ({ elements, onElementsChange, animations, isAnimating, onElementSelect, currentTime }, ref) => {
-    const [animatedElements, setAnimatedElements] = useState<ExcalidrawElement[]>(elements);
-    const animationRef = useRef<number>();
+    const [excalidrawAPI, setExcalidrawAPI] = React.useState<ExcalidrawImperativeAPI | null>(null);
+
+    useImperativeHandle(ref, () => excalidrawAPI as ExcalidrawImperativeAPI, [excalidrawAPI]);
 
     const applyAnimation = (element: ExcalidrawElement, animation: Animation, progress: number) => {
       const { type, value } = animation;
+      const clampedProgress = Math.min(1, Math.max(0, progress));
       switch (type) {
         case 'move':
           return {
             ...element,
-            x: element.x + (value as number) * progress,
-            y: element.y + (value as number) * progress,
+            x: element.x + (value as number) * clampedProgress,
+            y: element.y + (value as number) * clampedProgress,
           };
         case 'rotate':
           return {
             ...element,
-            angle: (element.angle || 0) + (value as number) * progress,
+            angle: (element.angle || 0) + (value as number) * clampedProgress,
           };
         case 'scale':
-          const scale = 1 + (value as number - 1) * progress;
+          const scale = 1 + (value as number - 1) * clampedProgress;
           return {
             ...element,
             width: (element.width || 0) * scale,
@@ -45,7 +48,7 @@ const ExcalidrawRenderer = React.forwardRef<ExcalidrawImperativeAPI, ExcalidrawR
             ...element,
             strokeColor: styleValue.strokeColor || element.strokeColor,
             strokeWidth: styleValue.strokeWidth !== undefined ? 
-              element.strokeWidth + (styleValue.strokeWidth - (element.strokeWidth || 0)) * progress : 
+              element.strokeWidth + (styleValue.strokeWidth - (element.strokeWidth || 0)) * clampedProgress : 
               element.strokeWidth,
             backgroundColor: styleValue.backgroundColor || element.backgroundColor,
           };
@@ -54,30 +57,23 @@ const ExcalidrawRenderer = React.forwardRef<ExcalidrawImperativeAPI, ExcalidrawR
       }
     };
 
-    const easing = (t: number, easingType: string) => {
-      switch (easingType) {
-        case 'easeIn': return t * t;
-        case 'easeOut': return 1 - Math.pow(1 - t, 2);
-        case 'easeInOut': return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        default: return t; // linear
-      }
-    };
-
-    useEffect(() => {
-      if (isAnimating) {
+    const updateScene = useCallback(() => {
+      if (isAnimating && excalidrawAPI) {
         console.log('Starting animation in ExcalidrawRenderer');
         const newElements = elements.map(element => {
           const animation = animations[element.id];
           if (animation) {
-            return applyAnimation(element, animation, currentTime);
+            return applyAnimation(element, animation, currentTime / animation.duration);
           }
           return element;
         });
-        setAnimatedElements(newElements);
-      } else {
-        setAnimatedElements(elements);
+        excalidrawAPI.updateScene({ elements: newElements });
       }
-    }, [isAnimating, elements, animations, currentTime]);
+    }, [isAnimating, currentTime, excalidrawAPI, elements, animations]);
+
+    useEffect(() => {
+      updateScene();
+    }, [updateScene]);
 
     const handleChange = (elements: readonly ExcalidrawElement[], appState: AppState) => {
       onElementsChange(elements);
@@ -88,12 +84,19 @@ const ExcalidrawRenderer = React.forwardRef<ExcalidrawImperativeAPI, ExcalidrawR
 
     return (
       <Excalidraw
-        ref={ref}
+        excalidrawAPI={(api) => {
+          setExcalidrawAPI(api);
+          if (typeof ref === 'function') {
+            ref(api);
+          } else if (ref) {
+            ref.current = api;
+          }
+        }}
         initialData={{
           elements: elements,
           appState: { viewBackgroundColor: '#ffffff' },
         }}
-        onChange={handleChange}
+        onChange={(elements, appState) => handleChange(elements, appState)}
       />
     );
   }

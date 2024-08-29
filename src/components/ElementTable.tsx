@@ -1,81 +1,80 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 
 interface ElementTableProps {
   elements: ExcalidrawElement[];
-  onElementRename: (elementId: string, newName: string) => void;
+  onElementRename: (id: string, newName: string) => void;
   onElementSelect: (element: ExcalidrawElement | null) => void;
   selectedElementId: string | null;
 }
 
-const ElementTable: React.FC<ElementTableProps> = ({
-  elements,
-  onElementRename,
-  onElementSelect,
-  selectedElementId,
+const ElementTable: React.FC<ElementTableProps> = ({ 
+  elements, 
+  onElementRename, 
+  onElementSelect, 
+  selectedElementId 
 }) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
+  const [editingName, setEditingName] = useState<string>('');
 
-  const handleRenameStart = useCallback((element: ExcalidrawElement) => {
-    setEditingId(element.id);
-    setEditingName(element.customData?.name || element.id);
-  }, []);
+  // Generate default names
+  const elementNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    const counts: Record<string, number> = {};
+    elements.forEach(element => {
+      if (element.customData?.name) {
+        names[element.id] = element.customData.name;
+      } else {
+        counts[element.type] = (counts[element.type] || 0) + 1;
+        names[element.id] = `${element.type}-${counts[element.type]}`;
+      }
+    });
+    return names;
+  }, [elements]);
 
-  const handleRenameConfirm = useCallback(() => {
-    if (editingId && editingName.trim() !== '') {
-      onElementRename(editingId, editingName.trim());
-      setEditingId(null);
+  useEffect(() => {
+    if (selectedElementId) {
+      setEditingName(elementNames[selectedElementId] || '');
     }
-  }, [editingId, editingName, onElementRename]);
+  }, [selectedElementId, elementNames]);
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleRenameConfirm();
-    }
-  }, [handleRenameConfirm]);
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingName(e.target.value);
+  };
+
+  const handleNameBlur = (id: string) => {
+    onElementRename(id, editingName);
+  };
 
   return (
-    <div className="p-4">
-      <h2 className="text-lg font-semibold mb-4">Elements</h2>
-      <ul className="space-y-2">
+    <table className="w-full">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody>
         {elements.map((element) => (
-          <li
-            key={element.id}
-            className={`p-2 rounded-md cursor-pointer ${
-              selectedElementId === element.id ? 'bg-blue-100' : 'hover:bg-gray-100'
-            }`}
+          <tr 
+            key={element.id} 
             onClick={() => onElementSelect(element)}
+            className={selectedElementId === element.id ? 'bg-blue-100' : ''}
           >
-            {editingId === element.id ? (
+            <td>
               <input
-                type="text"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onBlur={handleRenameConfirm}
-                onKeyPress={handleKeyPress}
-                autoFocus
-                className="w-full p-1 border border-gray-300 rounded-md"
+                value={selectedElementId === element.id ? editingName : elementNames[element.id]}
+                onChange={handleNameChange}
+                onBlur={() => handleNameBlur(element.id)}
+                disabled={selectedElementId !== element.id}
+                className={selectedElementId === element.id ? 'border border-blue-500' : 'border-none bg-transparent'}
               />
-            ) : (
-              <div className="flex justify-between items-center">
-                <span>{element.customData?.name || element.id}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRenameStart(element);
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Rename
-                </button>
-              </div>
-            )}
-          </li>
+            </td>
+            <td>{element.type}</td>
+          </tr>
         ))}
-      </ul>
-    </div>
+      </tbody>
+    </table>
   );
 };
 
-export default React.memo(ElementTable);
+export default ElementTable;
