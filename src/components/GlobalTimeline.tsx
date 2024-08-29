@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack } from './Icons';
+import { Play, Pause, SkipBack, Repeat } from './Icons';
 import { Animation } from '../types/Animation';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 
@@ -12,6 +12,8 @@ interface GlobalTimelineProps {
   elements: ExcalidrawElement[];
   onAnimationUpdate: (elementId: string, animation: Animation) => void;
   onStartAnimation: () => void;
+  isLooping: boolean;
+  onLoopToggle: () => void;
 }
 
 const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
@@ -22,6 +24,8 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
   elements,
   onAnimationUpdate,
   onStartAnimation,
+  isLooping,
+  onLoopToggle,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [draggingAnimation, setDraggingAnimation] = useState<{ elementId: string; type: 'start' | 'end' } | null>(null);
@@ -97,6 +101,17 @@ const GlobalTimeline: React.FC<GlobalTimelineProps> = ({
           title="Reset Animation"
         >
           <SkipBack size={20} />
+        </button>
+        <button
+          onClick={onLoopToggle}
+          className={`mr-2 p-2 rounded-full transition duration-300 ${
+            isLooping
+              ? 'bg-[#6965db] text-white hover:bg-[#5b57c2]'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          title="Toggle Loop"
+        >
+          <Repeat size={20} />
         </button>
         <div className="text-sm font-medium">{currentTime}ms / {duration}ms</div>
       </div>

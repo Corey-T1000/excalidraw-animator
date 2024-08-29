@@ -20,6 +20,8 @@ const App: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0); // Default 0
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const animationFrameRef = useRef<number | null>(null);
 
   const excalidrawRef = useRef<ExcalidrawImperativeAPI>(null);
 
@@ -122,7 +124,10 @@ const App: React.FC = () => {
       const elapsedTime = time - startTime;
       if (elapsedTime < totalDuration) {
         setCurrentTime(elapsedTime);
-        requestAnimationFrame(animate);
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else if (isLooping) {
+        setCurrentTime(0);
+        animationFrameRef.current = requestAnimationFrame(animate);
       } else {
         setIsAnimating(false);
         setCurrentTime(totalDuration);
@@ -193,6 +198,10 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   }, [elements, animations]);
 
+  const handleLoopToggle = useCallback(() => {
+    setIsLooping(prev => !prev);
+  }, []);
+
   return (
     <div className="flex flex-col h-screen bg-[#f5f5f5]">
       {isStartScreen ? (
@@ -247,6 +256,8 @@ const App: React.FC = () => {
             elements={elements}
             onAnimationUpdate={handleAnimationUpdate}
             onStartAnimation={handleStartAnimation}
+            isLooping={isLooping}
+            onLoopToggle={handleLoopToggle}
           />
         </>
       )}
