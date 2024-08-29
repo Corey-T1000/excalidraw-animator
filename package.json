@@ -18,12 +18,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test",
-    "eject": "react-scripts eject",
-    "docker:build": "docker build -t my-app .",
-    "docker:run": "docker run -p 3000:3000 my-app",
-    "docker:compose": "docker-compose up",
-    "docker:compose:build": "docker-compose up --build"
+    "test": "craco test"
   },
   "eslintConfig": {
     "extends": [
