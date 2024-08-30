@@ -12,6 +12,11 @@ declare module 'lucide-react' {
   export const Pencil: Icon
   export const Type: Icon
   export const HelpCircle: Icon
-  export const Download: Icon  // Add this line
+  export const Download: Icon
+  // Add the missing icons
+  export const Move: Icon
+  export const RotateCw: Icon
+  export const Maximize: Icon
+  export const Palette: Icon
   // Add other icons as needed
 }

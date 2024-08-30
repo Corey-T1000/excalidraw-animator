@@ -3,7 +3,7 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
 import { ExcalidrawElement } from "@excalidraw/excalidraw/types/element/types";
 import { AppState } from "@excalidraw/excalidraw/types/types";
-import { Animation } from '../types/Animation';
+import { Animation, StyleValue } from '../types/Animation';
 
 interface ExcalidrawWrapperProps {
   elements: ExcalidrawElement[];
