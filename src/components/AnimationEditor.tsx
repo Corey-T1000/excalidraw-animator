@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 import { Animation } from '../types/Animation';
+import * as LucideIcons from 'lucide-react';
+
+const { Move, RotateCw, Maximize, Palette } = LucideIcons;
 
 interface AnimationEditorProps {
   selectedElement: ExcalidrawElement | null;
@@ -112,16 +115,48 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAn
     <div className="flex flex-col h-full">
       <div className="p-4 bg-gray-100 border-b">
         <h3 className="text-lg font-semibold mb-2">Animation Editor</h3>
-        <select
-          value={animationType}
-          onChange={handleTypeChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="move">Move</option>
-          <option value="rotate">Rotate</option>
-          <option value="scale">Scale</option>
-          <option value="style">Style</option>
-        </select>
+        <div className="flex w-full overflow-hidden rounded-md">
+          <button
+            onClick={() => handleTypeChange({ target: { value: 'move' } } as React.ChangeEvent<HTMLSelectElement>)}
+            className={`flex-1 p-2 ${
+              animationType === 'move' 
+                ? 'bg-primary text-white ring-2 ring-primary ring-inset' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Move size={16.8} className="mx-auto" />
+          </button>
+          <button
+            onClick={() => handleTypeChange({ target: { value: 'rotate' } } as React.ChangeEvent<HTMLSelectElement>)}
+            className={`flex-1 p-2 ${
+              animationType === 'rotate' 
+                ? 'bg-primary text-white ring-2 ring-primary ring-inset' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <RotateCw size={16.8} className="mx-auto" />
+          </button>
+          <button
+            onClick={() => handleTypeChange({ target: { value: 'scale' } } as React.ChangeEvent<HTMLSelectElement>)}
+            className={`flex-1 p-2 ${
+              animationType === 'scale' 
+                ? 'bg-primary text-white ring-2 ring-primary ring-inset' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Maximize size={16.8} className="mx-auto" />
+          </button>
+          <button
+            onClick={() => handleTypeChange({ target: { value: 'style' } } as React.ChangeEvent<HTMLSelectElement>)}
+            className={`flex-1 p-2 ${
+              animationType === 'style' 
+                ? 'bg-primary text-white ring-2 ring-primary ring-inset' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <Palette size={16.8} className="mx-auto" />
+          </button>
+        </div>
       </div>
       <div className="flex-grow overflow-y-auto p-4">
         <div className="space-y-4">
@@ -289,13 +324,13 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAn
           <div className="flex space-x-2">
             <button
               onClick={handleSubmit}
-              className="flex-1 bg-primary text-white p-2 rounded hover:bg-primary-darker transition-colors duration-200"
+              className="flex-1 p-2 rounded-md bg-primary text-white hover:bg-primary-darker transition-colors duration-200"
             >
               Add Animation
             </button>
             <button
               onClick={handleReset}
-              className="flex-1 bg-gray-300 text-gray-700 p-2 rounded hover:bg-gray-400 transition-colors duration-200"
+              className="flex-1 p-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200"
             >
               Reset
             </button>

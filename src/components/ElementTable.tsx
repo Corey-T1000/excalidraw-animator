@@ -46,35 +46,49 @@ const ElementTable: React.FC<ElementTableProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto p-4">
-      <table className="w-full">
-        <thead>
-          <tr>
-            <th className="px-2 py-2 text-left">Name</th>
-            <th className="px-2 py-2 text-left">Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          {elements.map((element) => (
-            <tr 
-              key={element.id} 
-              onClick={() => onElementSelect(element)}
-              className={`cursor-pointer hover:bg-gray-100 ${selectedElementId === element.id ? 'bg-blue-100' : ''}`}
-            >
-              <td className="px-2 py-2">
-                <input
-                  value={selectedElementId === element.id ? editingName : elementNames[element.id]}
-                  onChange={handleNameChange}
-                  onBlur={() => handleNameBlur(element.id)}
-                  disabled={selectedElementId !== element.id}
-                  className={`w-full ${selectedElementId === element.id ? 'border border-blue-500' : 'border-none bg-transparent'}`}
-                />
-              </td>
-              <td className="px-2 py-2">{element.type}</td>
+    <div className="flex flex-col min-h-[30%] max-h-[50%]">
+      <div className="p-4 bg-gray-100 border-b">
+        <h3 className="text-lg font-semibold">Elements</h3>
+      </div>
+      <div className="flex-grow overflow-y-auto">
+        <table className="w-full">
+          <thead className="bg-gray-200 sticky top-0">
+            <tr>
+              <th className="p-2 text-left">Name</th>
+              <th className="p-2 text-left">Type</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {elements.map((element) => (
+              <tr 
+                key={element.id}
+                onClick={() => onElementSelect(element)}
+                className={`cursor-pointer transition-colors duration-200 ${
+                  selectedElementId === element.id 
+                    ? 'bg-primary text-white' 
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <td className="p-2">
+                  <input
+                    value={selectedElementId === element.id ? editingName : elementNames[element.id]}
+                    onChange={handleNameChange}
+                    onBlur={() => handleNameBlur(element.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={selectedElementId !== element.id}
+                    className={`w-full bg-transparent border-none focus:outline-none ${
+                      selectedElementId === element.id ? 'text-white' : 'text-gray-700'
+                    }`}
+                  />
+                </td>
+                <td className="p-2 text-sm">
+                  {element.type}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
