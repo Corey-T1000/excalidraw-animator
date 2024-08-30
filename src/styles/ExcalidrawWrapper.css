@@ -1,0 +1,47 @@
+.excalidraw-wrapper {
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+}
+
+.excalidraw {
+  --color-primary: #6965db;
+  --color-primary-darker: #5b57c2;
+  --color-primary-darkest: #4a47a3;
+  --color-primary-light: #e3e2fe;
+
+  --default-border-color: #d6d6d6;
+  --input-border-color: #d6d6d6;
+  --input-hover-border-color: #ced4da;
+  --input-focus-border-color: var(--color-primary);
+
+  --island-bg-color: #ffffff;
+  --button-gray-1: #f8f9fa;
+  --button-gray-2: #e9ecef;
+  --button-gray-3: #dee2e6;
+
+  --text-primary-color: #333;
+
+  --shadow-island: 0 0 0 1px rgba(0, 0, 0, 0.05), 0px 3px 6px rgba(0, 0, 0, 0.05);
+}
+
+.excalidraw.theme--dark {
+  --color-primary: #7b7ade;
+  --color-primary-darker: #6965db;
+  --color-primary-darkest: #5b57c2;
+  --color-primary-light: #e3e2fe;
+
+  --default-border-color: #4d4d4d;
+  --input-border-color: #4d4d4d;
+  --input-hover-border-color: #5f5f5f;
+  --input-focus-border-color: var(--color-primary);
+
+  --island-bg-color: #2f3136;
+  --button-gray-1: #202225;
+  --button-gray-2: #2f3136;
+  --button-gray-3: #36393f;
+
+  --text-primary-color: #ffffff;
+
+  --shadow-island: 0 0 0 1px rgba(255, 255, 255, 0.1), 0px 3px 6px rgba(0, 0, 0, 0.3);
+}
