@@ -7,11 +7,17 @@ const { Move, RotateCw, Maximize, Palette } = LucideIcons;
 
 interface AnimationEditorProps {
   selectedElement: ExcalidrawElement | null;
+  animation: Animation | null;
   onAnimationUpdate: (elementId: string, animation: Animation | null) => void;
-  onAddToTimeline: (elementId: string, animation: Animation) => void;
+  onAddToTimeline: (elementId: string, animation: Animation) => void; // Add this line
 }
 
-const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAnimationUpdate, onAddToTimeline }) => {
+const AnimationEditor: React.FC<AnimationEditorProps> = ({ 
+  selectedElement, 
+  animation, 
+  onAnimationUpdate,
+  onAddToTimeline // Add this line
+}) => {
   const [animationType, setAnimationType] = useState<Animation['type']>('move');
   const [animationDuration, setAnimationDuration] = useState(1000);
   const [animationDelay, setAnimationDelay] = useState(0);
@@ -87,7 +93,7 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAn
       if (animationType === 'rotate') {
         finalValue = (animationValue as number) * (Math.PI / 180);
       }
-      const animation: Animation = {
+      const newAnimation: Animation = {
         type: animationType,
         duration: animationDuration,
         delay: animationDelay,
@@ -97,8 +103,8 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAn
         isReverse,
         isLoop,
       };
-      onAnimationUpdate(selectedElement.id, animation);
-      onAddToTimeline(selectedElement.id, animation);
+      onAnimationUpdate(selectedElement.id, newAnimation);
+      onAddToTimeline(selectedElement.id, newAnimation); // Add this line
     }
   };
 
@@ -109,12 +115,20 @@ const AnimationEditor: React.FC<AnimationEditorProps> = ({ selectedElement, onAn
     }
   };
 
-  if (!selectedElement) return null;
+  if (!selectedElement) {
+    return (
+      <div className="p-4 bg-gray-100 border-b">
+        <h3 className="text-lg font-semibold mb-2">Animation Editor</h3>
+        <p>Select an element from the timeline to edit its animation properties.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 bg-gray-100 border-b">
         <h3 className="text-lg font-semibold mb-2">Animation Editor</h3>
+        <p>Editing: {selectedElement.type} - {selectedElement.id.slice(0, 8)}</p>
         <div className="flex w-full overflow-hidden rounded-md">
           <button
             onClick={() => handleTypeChange({ target: { value: 'move' } } as React.ChangeEvent<HTMLSelectElement>)}

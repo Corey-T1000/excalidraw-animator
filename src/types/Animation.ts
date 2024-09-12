@@ -13,9 +13,9 @@ export interface Animation {
   type: 'move' | 'rotate' | 'scale' | 'style';
   duration: number;
   delay: number;
-  value: number | { x: number; y: number } | StyleValue;
+  value: number | { x: number; y: number } | { strokeColor: string; strokeWidth: number; backgroundColor: string };
   easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
-  keyframes: Record<number, number | string | StyleValue>;
+  keyframes: Record<string, any>;
   isReverse: boolean;
   isLoop: boolean;
 }

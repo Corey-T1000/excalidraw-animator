@@ -1,15 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ExcalidrawWrapper from './components/ExcalidrawWrapper';
 import AnimationEditor from './components/AnimationEditor';
-import ElementTable from './components/ElementTable';
 import { StartScreen } from './components/StartScreen';
-import GlobalTimeline from './components/GlobalTimeline';
 import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types/types";
-import { Download } from 'lucide-react';
 import { Menu } from './components/Icons';
 import './styles/StartScreen.css';
 import { Animation } from './types/Animation';
+import Timeline from './components/Timeline';
 
 const App: React.FC = () => {
   const [elements, setElements] = useState<ExcalidrawElement[]>([]);
@@ -18,9 +16,10 @@ const App: React.FC = () => {
   const [isStartScreen, setIsStartScreen] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(0); // Default 0
+  const [totalDuration, setTotalDuration] = useState(5000); // Default 5 seconds
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const animationFrameRef = useRef<number | null>(null);
 
   const excalidrawRef = useRef<ExcalidrawImperativeAPI>(null);
@@ -39,21 +38,47 @@ const App: React.FC = () => {
     setIsStartScreen(false);
   }, []);
 
-  const handleElementsChange = useCallback((newElements: readonly ExcalidrawElement[]) => {
+  const handleElementsChange = useCallback((newElements: readonly ExcalidrawElement[], deletedElementIds: string[] = []) => {
     setElements(prevElements => {
       if (JSON.stringify(prevElements) !== JSON.stringify(newElements)) {
         return newElements as ExcalidrawElement[];
       }
       return prevElements;
     });
-  }, []);
+
+    // Remove animations for deleted elements
+    if (deletedElementIds.length > 0) {
+      setAnimations(prevAnimations => {
+        const updatedAnimations = { ...prevAnimations };
+        deletedElementIds.forEach(id => {
+          delete updatedAnimations[id];
+        });
+        return updatedAnimations;
+      });
+
+      // Update total duration
+      setTotalDuration(prevDuration => {
+        const remainingAnimations = Object.entries(animations)
+          .filter(([id]) => !deletedElementIds.includes(id))
+          .map(([, anim]) => anim);
+        return Math.max(
+          ...remainingAnimations.map(anim => (anim?.delay ?? 0) + (anim?.duration ?? 0)),
+          0
+        );
+      });
+
+      // Deselect the element if it was deleted
+      if (selectedElement && deletedElementIds.includes(selectedElement.id)) {
+        setSelectedElement(null);
+      }
+    }
+  }, [animations, selectedElement]);
 
   const handleAnimationUpdate = useCallback((elementId: string, animation: Animation | null) => {
     setAnimations(prev => {
       if (animation === null) {
-        const newAnimations = { ...prev };
-        delete newAnimations[elementId];
-        return newAnimations;
+        const { [elementId]: _, ...rest } = prev;
+        return rest;
       }
       return {
         ...prev,
@@ -61,72 +86,30 @@ const App: React.FC = () => {
       };
     });
 
-    // Update total duration if necessary
+    // Update total duration
     setTotalDuration(prevDuration => {
-      if (animation) {
-        return Math.max(prevDuration, animation.delay + animation.duration);
-      }
-      return prevDuration;
+      const allAnimations = { ...animations, [elementId]: animation };
+      return Math.max(
+        ...Object.values(allAnimations).map(anim => (anim?.delay ?? 0) + (anim?.duration ?? 0)),
+        prevDuration
+      );
     });
-  }, []);
-
-  const handleElementRename = useCallback((elementId: string, newName: string) => {
-    setElements(prevElements => {
-      const elementIndex = prevElements.findIndex(el => el.id === elementId);
-      if (elementIndex === -1) return prevElements;
-
-      const element = prevElements[elementIndex];
-      
-      // Use the new name if provided, otherwise keep the existing name or generate a new one
-      const finalName = newName.trim() || element.customData?.name || `${element.type}-${prevElements.filter(el => el.type === element.type).length}`;
-
-      const updatedElement = {
-        ...element,
-        customData: { ...element.customData, name: finalName }
-      };
-
-      const newElements = [...prevElements];
-      newElements[elementIndex] = updatedElement;
-
-      // Update the Excalidraw scene
-      if (excalidrawRef.current) {
-        excalidrawRef.current.updateScene({
-          elements: newElements
-        });
-      }
-
-      return newElements;
-    });
-    
-    // Update selectedElement if it's the renamed element
-    setSelectedElement(prev => 
-      prev && prev.id === elementId 
-        ? { ...prev, customData: { ...prev.customData, name: newName.trim() || prev.customData?.name || `${prev.type}-${elements.filter(el => el.type === prev.type).length}` } }
-        : prev
-    );
-
-    // Update the Excalidraw scene
-    if (excalidrawRef.current) {
-      excalidrawRef.current.updateScene({
-        elements: elements.map(el => 
-          el.id === elementId 
-            ? { ...el, customData: { ...el.customData, name: newName.trim() || `${el.type}-${elements.filter(e => e.type === el.type).length}` } }
-            : el
-        )
-      });
-    }
-  }, [elements]);
+  }, [animations]);
 
   const handleStartAnimation = useCallback(() => {
+    setIsResetting(true);
+    setCurrentTime(0);
     setIsAnimating(true);
     const startTime = performance.now();
     const animate = (time: number) => {
       const elapsedTime = time - startTime;
       if (elapsedTime < totalDuration) {
         setCurrentTime(elapsedTime);
+        setIsResetting(false); // Set isResetting to false after the first frame
         animationFrameRef.current = requestAnimationFrame(animate);
       } else if (isLooping) {
         setCurrentTime(0);
+        setIsResetting(true);
         animationFrameRef.current = requestAnimationFrame(animate);
       } else {
         setIsAnimating(false);
@@ -134,7 +117,7 @@ const App: React.FC = () => {
       }
     };
     requestAnimationFrame(animate);
-  }, [totalDuration]);
+  }, [totalDuration, isLooping]);
 
   const handleAddToTimeline = useCallback((elementId: string, animation: Animation) => {
     // Here you can add any additional logic needed for adding to the timeline
@@ -168,38 +151,38 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleElementSelect = useCallback((element: ExcalidrawElement | null) => {
-    setSelectedElement(prev => prev?.id === element?.id ? prev : element);
-  }, []);
+  const handleElementSelect = useCallback((elementId: string | null) => {
+    if (elementId) {
+      const element = elements.find(el => el.id === elementId);
+      setSelectedElement(element || null);
+    } else {
+      setSelectedElement(null);
+    }
+  }, [elements]);
 
   const handleTimeChange = useCallback((newTime: number) => {
     setCurrentTime(newTime);
   }, []);
 
-  const exportAnimatedFile = useCallback(() => {
-    const exportObject = {
-      type: 'excalidraw',
-      version: 2,
-      source: 'https://excalidraw.com',
-      elements: elements,
-      appState: {
-        viewBackgroundColor: '#ffffff',
-        gridSize: null,
-      },
-      animations: animations, // Include animations in the exported file
-    };
-
-    const blob = new Blob([JSON.stringify(exportObject)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'animated_excalidraw.excalidraw';
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [elements, animations]);
-
   const handleLoopToggle = useCallback(() => {
     setIsLooping(prev => !prev);
+  }, []);
+
+  const handleDurationChange = useCallback((newDuration: number) => {
+    setTotalDuration(newDuration);
+    // Optionally, adjust animations if they exceed the new duration
+    setAnimations(prevAnimations => {
+      const updatedAnimations = { ...prevAnimations };
+      Object.entries(updatedAnimations).forEach(([id, anim]) => {
+        if (anim.delay + anim.duration > newDuration) {
+          updatedAnimations[id] = {
+            ...anim,
+            duration: Math.max(0, newDuration - anim.delay)
+          };
+        }
+      });
+      return updatedAnimations;
+    });
   }, []);
 
   return (
@@ -223,41 +206,42 @@ const App: React.FC = () => {
                 ref={excalidrawRef}
                 elements={elements}
                 onElementsChange={handleElementsChange}
+                onElementsDeleted={(deletedElementIds) => handleElementsChange(elements, deletedElementIds)}
                 animations={animations}
                 isAnimating={isAnimating}
                 onElementSelect={handleElementSelect}
                 currentTime={currentTime}
+                totalDuration={totalDuration}
+                isResetting={isResetting}
               />
             </div>
             <div className={`w-full md:w-80 bg-white border-t md:border-t-0 md:border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-y-0' : 'translate-y-full'} md:translate-y-0`}>
               <div className="flex-1 overflow-y-auto">
-                <ElementTable
-                  elements={elements}
-                  onElementRename={handleElementRename}
-                  onElementSelect={handleElementSelect}
-                  selectedElementId={selectedElement?.id || null}
-                />
                 {selectedElement && (
                   <AnimationEditor
                     selectedElement={selectedElement}
+                    animation={selectedElement ? animations[selectedElement.id] : null}
                     onAnimationUpdate={handleAnimationUpdate}
                     onAddToTimeline={handleAddToTimeline}
                   />
                 )}
               </div>
-              {/* Remove the separate "Add to Timeline" button */}
             </div>
           </div>
-          <GlobalTimeline
+          <Timeline
+            elements={elements}
+            animations={animations}
+            onSelectElement={handleElementSelect}
+            selectedElementId={selectedElement?.id || null}
             duration={totalDuration}
             currentTime={currentTime}
             onTimeChange={handleTimeChange}
-            animations={animations}
-            elements={elements}
             onAnimationUpdate={handleAnimationUpdate}
             onStartAnimation={handleStartAnimation}
             isLooping={isLooping}
             onLoopToggle={handleLoopToggle}
+            onDurationChange={handleDurationChange}
+            key={Object.keys(animations).length}
           />
         </>
       )}

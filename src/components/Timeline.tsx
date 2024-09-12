@@ -1,88 +1,182 @@
-import React, { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useCallback, useRef } from 'react';
+import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
+import { Animation } from '../types/Animation';
 
 interface TimelineProps {
+  elements: ExcalidrawElement[];
+  animations: Record<string, Animation>;
+  onSelectElement: (elementId: string) => void;
+  selectedElementId: string | null;
   duration: number;
-  keyframes: Record<number, number | string | StyleValue>;
-  onKeyframeAdd: (time: number) => void;
-  onKeyframeMove: (oldTime: number, newTime: number) => void;
-  onKeyframeDelete: (time: number) => void;
-}
-
-interface StyleValue {
-  strokeColor?: string;
-  strokeWidth?: number;
-  backgroundColor?: string;
-}
-
-interface PanInfo {
-  point: { x: number; y: number };
-  delta: { x: number; y: number };
-  offset: { x: number; y: number };
-  velocity: { x: number; y: number };
+  currentTime: number;
+  onTimeChange: (time: number) => void;
+  onAnimationUpdate: (elementId: string, animation: Animation | null) => void;
+  onStartAnimation: () => void;
+  isLooping: boolean;
+  onLoopToggle: () => void;
+  onDurationChange: (newDuration: number) => void; // New prop
 }
 
 const Timeline: React.FC<TimelineProps> = ({
+  elements,
+  animations,
+  onSelectElement,
+  selectedElementId,
   duration,
-  keyframes,
-  onKeyframeAdd,
-  onKeyframeMove,
-  onKeyframeDelete,
+  currentTime,
+  onTimeChange,
+  onAnimationUpdate,
+  onStartAnimation,
+  isLooping,
+  onLoopToggle,
+  onDurationChange, // New prop
 }) => {
-  const [draggedKeyframe, setDraggedKeyframe] = useState<number | null>(null);
+  const [draggingElement, setDraggingElement] = useState<string | null>(null);
+  const [dragType, setDragType] = useState<'start' | 'end' | 'move' | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
-  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const time = Math.round((x / rect.width) * duration);
-    onKeyframeAdd(time);
-  }, [duration, onKeyframeAdd]);
-
-  const handleKeyframeDragStart = useCallback((time: number) => {
-    setDraggedKeyframe(time);
-  }, []);
-
-  const handleKeyframeDrag = useCallback((time: number, info: PanInfo) => {
-    if (draggedKeyframe !== null) {
-      const timelineWidth = document.querySelector('.timeline-container')?.clientWidth || 200;
-      const newTime = Math.max(0, Math.min(duration, time + (info.offset.x / timelineWidth) * duration));
-      onKeyframeMove(time, Math.round(newTime));
+  const getTimelinePosition = useCallback((clientX: number) => {
+    if (timelineRef.current) {
+      const rect = timelineRef.current.getBoundingClientRect();
+      const position = (clientX - rect.left) / rect.width;
+      return Math.max(0, Math.min(1, position)) * duration;
     }
-  }, [draggedKeyframe, duration, onKeyframeMove]);
+    return 0;
+  }, [duration]);
 
-  const handleKeyframeDragEnd = useCallback(() => {
-    setDraggedKeyframe(null);
+  const handleMouseDown = useCallback((e: React.MouseEvent, elementId: string, type: 'start' | 'end' | 'move') => {
+    setDraggingElement(elementId);
+    setDragType(type);
   }, []);
 
-  const visibleKeyframes = Object.entries(keyframes)
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .slice(0, 10); // Limit to 10 visible keyframes
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (draggingElement && dragType) {
+      const newTime = getTimelinePosition(e.clientX);
+      const animation = animations[draggingElement];
+      if (animation) {
+        let newAnimation: Animation;
+        switch (dragType) {
+          case 'start':
+            newAnimation = { ...animation, delay: newTime };
+            break;
+          case 'end':
+            newAnimation = { ...animation, duration: newTime - animation.delay };
+            break;
+          case 'move':
+            const moveDistance = newTime - (animation.delay + animation.duration / 2);
+            newAnimation = { ...animation, delay: animation.delay + moveDistance };
+            break;
+        }
+        onAnimationUpdate(draggingElement, newAnimation);
+      }
+    }
+  }, [draggingElement, dragType, animations, getTimelinePosition, onAnimationUpdate]);
+
+  const handleMouseUp = useCallback(() => {
+    setDraggingElement(null);
+    setDragType(null);
+  }, []);
+
+  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDuration = Math.max(1000, parseInt(e.target.value)); // Minimum 1 second
+    onDurationChange(newDuration);
+  };
 
   return (
-    <div className="mt-4">
-      <div
-        className="timeline-container relative w-full h-8 bg-gray-200 rounded cursor-pointer"
-        onClick={handleTimelineClick}
+    <div className="bg-white border-t border-gray-200 p-4">
+      <h3 className="text-lg font-semibold mb-2">Timeline</h3>
+      <div 
+        className="relative h-40 border border-gray-300"
+        ref={timelineRef}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       >
-        {visibleKeyframes.map(([time, value]) => (
-          <motion.div
-            key={time}
-            className="absolute w-4 h-4 bg-blue-500 rounded-full cursor-move"
-            style={{ left: `${(Number(time) / duration) * 100}%`, top: '50%', marginTop: '-8px' }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0}
-            onDragStart={() => handleKeyframeDragStart(Number(time))}
-            onDrag={(_: React.MouseEvent<HTMLDivElement>, info: PanInfo) => handleKeyframeDrag(Number(time), info)}
-            onDragEnd={handleKeyframeDragEnd}
-            whileHover={{ scale: 1.2 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 text-xs">
-              {time}ms
+        {elements.map((element) => {
+          const animation = animations[element.id];
+          if (!animation) return null;
+
+          const startPercent = (animation.delay / duration) * 100;
+          const widthPercent = (animation.duration / duration) * 100;
+
+          return (
+            <div
+              key={element.id}
+              className={`absolute h-8 bg-blue-200 border border-blue-400 rounded ${
+                selectedElementId === element.id ? 'ring-2 ring-blue-500' : ''
+              }`}
+              style={{
+                left: `${startPercent}%`,
+                width: `${widthPercent}%`,
+                top: `${elements.indexOf(element) * 40}px`,
+              }}
+              onClick={() => onSelectElement(element.id)}
+            >
+              <div 
+                className="absolute left-0 top-0 bottom-0 w-2 bg-blue-400 cursor-ew-resize"
+                onMouseDown={(e) => handleMouseDown(e, element.id, 'start')}
+              />
+              <div 
+                className="absolute right-0 top-0 bottom-0 w-2 bg-blue-400 cursor-ew-resize"
+                onMouseDown={(e) => handleMouseDown(e, element.id, 'end')}
+              />
+              <div 
+                className="absolute left-2 right-2 top-0 bottom-0 cursor-move"
+                onMouseDown={(e) => handleMouseDown(e, element.id, 'move')}
+              >
+                {element.type} - {element.id.slice(0, 8)}
+              </div>
             </div>
-          </motion.div>
-        ))}
+          );
+        })}
+        <div 
+          className="absolute top-0 bottom-0 w-0.5 bg-red-500"
+          style={{ left: `${(currentTime / duration) * 100}%` }}
+        />
+      </div>
+      <div className="mt-4">
+        <input
+          type="range"
+          min={0}
+          max={duration}
+          value={currentTime}
+          onChange={(e) => onTimeChange(Number(e.target.value))}
+          className="w-full"
+        />
+        <div className="flex justify-between mt-2">
+          <span>{currentTime.toFixed(2)}s</span>
+          <span>{(duration / 1000).toFixed(2)}s</span>
+        </div>
+      </div>
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700">
+          Total Duration (ms):
+          <input
+            type="number"
+            min="1000"
+            step="100"
+            value={duration}
+            onChange={handleDurationChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+          />
+        </label>
+      </div>
+      <div className="flex justify-between mt-4">
+        <button
+          onClick={onStartAnimation}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          {isLooping ? 'Loop' : 'Play'}
+        </button>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={isLooping}
+            onChange={onLoopToggle}
+            className="mr-2"
+          />
+          Loop
+        </label>
       </div>
     </div>
   );

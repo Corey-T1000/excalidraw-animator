@@ -1,12 +1,20 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import AnimationEditor from './AnimationEditor';
 import { Animation } from '../types/Animation';
 
 const ParentComponent: React.FC = () => {
+  const [animations, setAnimations] = useState<Record<string, Animation>>({});
+
   const handleAnimationUpdate = useCallback((elementId: string, animation: Animation | null) => {
     // Existing animation update logic
     console.log(`Updating animation for element ${elementId}:`, animation);
-    // You would typically update your state or call a parent component's method here
+    setAnimations(prev => {
+      if (animation === null) {
+        const { [elementId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [elementId]: animation };
+    });
   }, []);
 
   const handleAddToTimeline = useCallback((elementId: string, animation: Animation) => {
@@ -20,6 +28,7 @@ const ParentComponent: React.FC = () => {
       {/* Other components */}
       <AnimationEditor
         selectedElement={null} // You might want to pass a real selected element here
+        animation={null} // Add this line
         onAnimationUpdate={handleAnimationUpdate}
         onAddToTimeline={handleAddToTimeline}
       />
